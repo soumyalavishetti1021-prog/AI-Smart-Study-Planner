@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Smart Study Planner</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f3ff;
+      color: #252447;
+    }
+    header {
+      background: linear-gradient(120deg, #5946d8, #8a63e9);
+      color: white;
+      padding: 28px 7%;
+    }
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; opacity: .9; }
+    main { max-width: 1000px; margin: 25px auto; padding: 0 18px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: white;
+      padding: 22px;
+      border-radius: 16px;
+      box-shadow: 0 5px 20px #29205b0d;
+      margin-bottom: 18px;
+    }
+    h2 { font-size: 19px; margin-top: 0; }
+    label { display: block; font-size: 14px; margin: 14px 0 6px; }
+    input, select, button {
+      width: 100%;
+      padding: 11px;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    input, select {
+      border: 1px solid #dedbea;
+      background: white;
+      color: #252447;
+    }
+    button {
+      border: 0;
+      background: #6551d9;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    button:hover { background: #4937b8; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .stat {
+      background: white;
+      padding: 18px 8px;
+      border-radius: 13px;
+      text-align: center;
+    }
+    .stat strong { display: block; font-size: 25px; color: #6551d9; }
+    .stat span { font-size: 12px; color: #77738d; }
+    .task {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eeeaf8;
+      overflow-wrap: anywhere;
+    }
+    .task input { width: auto; }
+    .task span { flex: 1; }
+    .done { text-decoration: line-through; color: #888; }
+    .delete {
+      width: auto;
+      margin: 0;
+      padding: 7px 10px;
+      background: #fceaea;
+      color: #a32929;
+    }
+    .progress-bg {
+      height: 10px;
+      background: #ece9f8;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #progressBar {
+      height: 100%;
+      width: 0;
+      background: #6551d9;
+      transition: width .3s;
+    }
+    #plan p { background: #f4f1ff; padding: 12px; border-radius: 8px; }
+    footer { text-align: center; padding: 20px; color: #77738d; font-size: 13px; }
+    @media(max-width: 450px) {
+      .stats { gap: 6px; }
+      .stat strong { font-size: 21px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 AI Smart Study Planner</h1>
+    <p>Plan smarter. Study better. Achieve more.</p>
+  </header>
+
+  <main>
+    <div class="stats">
+      <div class="stat"><strong id="total">0</strong><span>Total Tasks</span></div>
+      <div class="stat"><strong id="completed">0</strong><span>Completed</span></div>
+      <div class="stat"><strong id="percent">0%</strong><span>Progress</span></div>
+    </div>
+
+    <section class="card">
+      <h2>✨ Create Your Study Plan</h2>
+      <label for="subject">Subject</label>
+      <input id="subject" placeholder="e.g. Python, DBMS, AI/ML">
+
+      <label for="topic">Topic to Study</label>
+      <input id="topic" placeholder="e.g. Python loops">
+
+      <label for="hours">Available Study Hours</label>
+      <select id="hours">
+        <option value="1">1 hour</option>
+        <option value="2" selected>2 hours</option>
+        <option value="3">3 hours</option>
+        <option value="4">4 hours</option>
+        <option value="5">5 hours</option>
+        <option value="6">6 hours</option>
+      </select>
+
+      <button id="generate">Generate Study Plan</button>
+      <div id="plan" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <h2>📝 Add a Study Task</h2>
+      <form id="taskForm">
+        <label for="taskInput">Task name</label>
+        <input id="taskInput" placeholder="e.g. Revise DBMS normalization" required>
+        <button type="submit">+ Add Task</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>📅 My Study Tasks</h2>
+      <div class="progress-bg"><div id="progressBar"></div></div>
+      <p id="progressText">Start by adding your first task!</p>
+      <div id="taskList"></div>
+    </section>
+  </main>
+
+  <footer>Built with ❤️ for your learning journey</footer>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    let tasks = [];
+
+    function renderTasks() {
+      const list = $("taskList");
+      list.innerHTML = "";
+
+      tasks.forEach(task => {
+        const row = document.createElement("div");
+        row.className = "task";
+
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.checked = task.done;
+        check.setAttribute("aria-label", "Mark " + task.name + " complete");
+        check.addEventListener("change", () => {
+          task.done = check.checked;
+          renderTasks();
+        });
+
+        const name = document.createElement("span");
+        name.textContent = task.name;
+        if (task.done) name.className = "done";
+
+        const del = document.createElement("button");
+        del.textContent = "Delete";
+        del.className = "delete";
+        del.addEventListener("click", () => {
+          tasks = tasks.filter(t => t.id !== task.id);
+          renderTasks();
+        });
+
+        row.append(check, name, del);
+        list.appendChild(row);
+      });
+
+      const total = tasks.length;
+      const done = tasks.filter(t => t.done).length;
+      const pct = total ? Math.round(done / total * 100) : 0;
+
+      $("total").textContent = total;
+      $("completed").textContent = done;
+      $("percent").textContent = pct + "%";
+      $("progressBar").style.width = pct + "%";
+      $("progressText").textContent = total
+        ? `${done} of ${total} tasks completed (${pct}%).`
+        : "Start by adding your first task!";
+    }
+
+    $("taskForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const input = $("taskInput");
+      const name = input.value.trim();
+      if (!name) return;
+
+      tasks.push({ id: Date.now() + Math.random(), name, done: false });
+      input.value = "";
+      renderTasks();
+    });
+
+    $("generate").addEventListener("click", () => {
+      const subject = $("subject").value.trim();
+      const topic = $("topic").value.trim();
+      const hours = Number($("hours").value);
+      const plan = $("plan");
+      plan.innerHTML = "";
+
+      if (!subject || !topic) {
+        plan.textContent = "Please enter both a subject and a topic.";
+        return;
+      }
+
+      const heading = document.createElement("h3");
+      heading.textContent = "Your suggested " + hours + "-hour plan";
+      plan.appendChild(heading);
+
+      const sessions = [
+        ["Learn the concepts", 0.4],
+        ["Practice examples", 0.4],
+        ["Revise and self-test", 0.2]
+      ];
+
+      sessions.forEach(([label, fraction]) => {
+        const p = document.createElement("p");
+        const minutes = Math.round(hours * 60 * fraction);
+        p.textContent = label + ": " + minutes + " minutes";
+        plan.appendChild(p);
+      });
+
+      const add = document.createElement("button");
+      add.textContent = "Add topic to my tasks";
+      add.addEventListener("click", () => {
+        tasks.push({
+          id: Date.now() + Math.random(),
+          name: subject + ": " + topic,
+          done: false
+        });
+        renderTasks();
+        add.textContent = "Added! ✓";
+        add.disabled = true;
+      });
+      plan.appendChild(add);
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
